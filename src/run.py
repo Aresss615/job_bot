@@ -11,7 +11,7 @@ Usage (from the repo root, inside the venv):
     .venv/bin/python -m src.run list             # show tracked leads by score
     .venv/bin/python -m src.run packet <job_link>  # print an approval packet
 
-Only Remote OK + We Work Remotely are fetched (the two ToS-permitted feeds).
+Only Remote OK is fetched (its public JSON API permits it).
 Nothing is ever submitted: `packet` stops at "Awaiting your approval".
 """
 
@@ -22,7 +22,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from src.collect import fetch_remoteok, fetch_wwr, collect_leads
+from src.collect import fetch_remoteok, collect_leads
 from src.tracker import read_leads, merge_leads, write_leads, select_new
 from src.packet import render_packet
 from src.notify import format_digest, email_config_from_env, send_email
@@ -55,13 +55,12 @@ def cmd_collect(_args) -> int:
     os.makedirs(DATA_DIR, exist_ok=True)
     today = datetime.now(timezone.utc).date().isoformat()
 
-    print("Fetching Remote OK + We Work Remotely ...")
+    print("Fetching Remote OK ...")
     remoteok = _safe_fetch("Remote OK", fetch_remoteok)
-    wwr = _safe_fetch("We Work Remotely", fetch_wwr)
-    if not remoteok and not wwr:
-        print("Both feeds failed — nothing collected. Leaving the tracker as-is.")
+    if not remoteok:
+        print("Feed fetch failed — nothing collected. Leaving the tracker as-is.")
         return 1
-    fresh = collect_leads(remoteok, wwr, date_found=today)
+    fresh = collect_leads(remoteok, date_found=today)
 
     existing = read_leads(CSV_PATH) if os.path.exists(CSV_PATH) else []
     added_leads = select_new(existing, fresh)

@@ -1,4 +1,3 @@
-# Runtime deps for the live fetch boundary (src/collect.py).
+# Runtime dep for the live fetch boundary (src/collect.py): Remote OK JSON API.
 # The tested core (score/tracker/packet/notify) runs on the stdlib alone.
 requests>=2.31
-feedparser>=6.0

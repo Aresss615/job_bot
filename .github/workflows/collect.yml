@@ -1,6 +1,6 @@
 name: collect-leads
 
-# Daily lead pull from the two ToS-permitted feeds (Remote OK API + WWR RSS).
+# Daily lead pull from Remote OK's public JSON API (the one ToS-permitted feed).
 # Collection only — nothing is ever applied to or submitted. New leads are
 # emailed to Jc and the updated tracker CSV is committed back so dedup state
 # (the "only new leads" guarantee) persists between runs.

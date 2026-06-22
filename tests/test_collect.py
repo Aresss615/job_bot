@@ -1,9 +1,12 @@
 """Tests for the M1->M2 lead intake (src/collect.py).
 
 Network is kept out of these tests: the pure parse/normalize/score functions
-are exercised against inline fixtures that mimic the Remote OK JSON API and the
-We Work Remotely RSS feed. The live ``fetch_*`` wrappers (which import requests /
-feedparser) are the I/O boundary and are not unit-tested here.
+are exercised against an inline fixture that mimics the Remote OK JSON API. The
+live ``fetch_remoteok`` wrapper (which imports requests) is the I/O boundary and
+is not unit-tested here.
+
+Remote OK is the only auto-collected source — its public JSON API permits it.
+(We Work Remotely was dropped: paid/low-value for this profile.)
 
 Run from the repo root with:
 
@@ -12,7 +15,7 @@ Run from the repo root with:
 
 import unittest
 
-from src.collect import parse_remoteok, parse_wwr, collect_leads
+from src.collect import parse_remoteok, collect_leads
 
 
 # --- inline fixtures -------------------------------------------------------
@@ -38,21 +41,6 @@ REMOTEOK_FIXTURE = [
         "url": "https://remoteok.com/jobs/222",
         "salary_min": 0,
         "salary_max": 0,
-    },
-]
-
-# feedparser entries expose .title/.link/.summary; a dict with those keys is the
-# shape the fetch wrapper hands to parse_wwr.
-WWR_FIXTURE = [
-    {
-        "title": "Acme Remote: Python Automation Developer",
-        "link": "https://weworkremotely.com/jobs/333",
-        "summary": "<p>Build <b>automation</b> with Python. Junior friendly.</p>",
-    },
-    {
-        "title": "Pixel Co: Senior Frontend Engineer",
-        "link": "https://weworkremotely.com/jobs/444",
-        "summary": "<p>React, Next.js, principal level.</p>",
     },
 ]
 
@@ -84,39 +72,20 @@ class ParseRemoteOkTests(unittest.TestCase):
         self.assertIn("django", lead["text"].lower())
 
 
-class ParseWwrTests(unittest.TestCase):
-    def test_normalizes_core_fields(self):
-        lead = parse_wwr(WWR_FIXTURE)[0]
-        self.assertEqual(lead["platform"], "WeWorkRemotely")
-        self.assertEqual(lead["job_link"], "https://weworkremotely.com/jobs/333")
-        self.assertEqual(lead["remote_type"], "Remote")
-
-    def test_splits_company_from_title(self):
-        # WWR titles look like "Company: Role".
-        lead = parse_wwr(WWR_FIXTURE)[0]
-        self.assertEqual(lead["company"], "Acme Remote")
-        self.assertEqual(lead["job_title"], "Python Automation Developer")
-
-    def test_strips_html_from_summary(self):
-        lead = parse_wwr(WWR_FIXTURE)[0]
-        self.assertNotIn("<", lead["text"])
-        self.assertIn("automation", lead["text"].lower())
-
-
 class CollectLeadsTests(unittest.TestCase):
     def test_drops_negative_keyword_leads(self):
-        leads = collect_leads(REMOTEOK_FIXTURE, WWR_FIXTURE, date_found="2026-06-22")
+        leads = collect_leads(REMOTEOK_FIXTURE, date_found="2026-06-22")
         titles = [l["job_title"] for l in leads]
         self.assertNotIn("Senior React Frontend Engineer", titles)
-        self.assertNotIn("Senior Frontend Engineer", titles)
 
-    def test_keeps_relevant_leads_from_both_sources(self):
-        leads = collect_leads(REMOTEOK_FIXTURE, WWR_FIXTURE, date_found="2026-06-22")
+    def test_keeps_relevant_remoteok_leads(self):
+        leads = collect_leads(REMOTEOK_FIXTURE, date_found="2026-06-22")
         platforms = {l["platform"] for l in leads}
-        self.assertEqual(platforms, {"RemoteOK", "WeWorkRemotely"})
+        self.assertEqual(platforms, {"RemoteOK"})
+        self.assertIn("Junior Backend Developer", [l["job_title"] for l in leads])
 
     def test_sets_score_status_and_date(self):
-        leads = collect_leads(REMOTEOK_FIXTURE, WWR_FIXTURE, date_found="2026-06-22")
+        leads = collect_leads(REMOTEOK_FIXTURE, date_found="2026-06-22")
         lead = leads[0]
         self.assertIsInstance(lead["fit_score"], int)
         self.assertEqual(lead["status"], "New")

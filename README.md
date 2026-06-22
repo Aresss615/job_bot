@@ -10,8 +10,8 @@ An approval-first agent that finds and surfaces part-time/remote jobs matching J
 A semi-automated job-lead pipeline. It collects new, verified leads from a
 narrow set of free, Philippines-eligible sources, then leaves application,
 messaging, and account actions to Jc. Automation is limited to gathering public
-leads via official feeds/APIs (e.g. We Work Remotely RSS, Remote OK JSON);
-submitting applications is manual by design.
+leads via official feeds/APIs (Remote OK's public JSON API); submitting
+applications is manual by design.
 
 See `deep-research-report.md` for the full platform analysis and strategy.
 
@@ -30,8 +30,8 @@ python -m src.run packet <job_link>    # print an approval packet (stops at "Awa
 python -m unittest discover -s tests   # 43 tests, stdlib unittest
 ```
 
-`collect` pulls only Remote OK (JSON API) and We Work Remotely (RSS) — the two
-feeds whose ToS permit it. Nothing is ever applied to or submitted.
+`collect` pulls only Remote OK (public JSON API). Nothing is ever applied to or
+submitted.
 
 ### Email digest (optional)
 
