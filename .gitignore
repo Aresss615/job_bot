@@ -1,0 +1,24 @@
+# --- shared (safe-stage red flags) ---
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+.idea/
+.vscode/
+*.sqlite
+*.db
+*.zip
+*.tar
+*.tar.gz
+
+# --- automation ---
+secrets/
+*.secret
+credentials.json
+token.json
+state/
+*.state
+__pycache__/
+.venv/
+venv/

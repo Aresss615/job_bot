@@ -1,0 +1,7 @@
+# Copy this file to `config` (gitignored) and fill in per-platform settings.
+# Keep all real credentials/tokens out of git.
+
+# Example placeholders — adjust once the stack is chosen:
+# REMOTEOK_API_URL=https://remoteok.com/api
+# WWR_RSS_URL=https://weworkremotely.com/remote-jobs.rss
+# OUTPUT_SHEET=leads.csv
