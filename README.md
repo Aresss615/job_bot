@@ -17,12 +17,34 @@ See `deep-research-report.md` for the full platform analysis and strategy.
 
 ## Getting started
 
-```
-# Stack not chosen yet — record the choice in a DECISIONS entry when it lands.
+Python 3, stdlib-first core; only the live fetch needs two packages.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python -m src.run collect              # fetch -> score -> merge into data/leads.csv
+python -m src.run list                 # show tracked leads by fit score
+python -m src.run packet <job_link>    # print an approval packet (stops at "Awaiting approval")
+python -m unittest discover -s tests   # 43 tests, stdlib unittest
 ```
 
-Required later: per-platform config/credentials (kept out of git — see
-`.gitignore` and `config.example`).
+`collect` pulls only Remote OK (JSON API) and We Work Remotely (RSS) — the two
+feeds whose ToS permit it. Nothing is ever applied to or submitted.
+
+### Email digest (optional)
+
+If `SMTP_USER`, `SMTP_PASS`, and `DIGEST_TO` are set, `collect` emails the newly
+found leads. With Gmail, use an [App Password](https://myaccount.google.com/apppasswords),
+not your account password. Unset, it just writes the CSV and prints the top leads.
+
+### Scheduled deployment
+
+`.github/workflows/collect.yml` runs `collect` daily (01:00 UTC ≈ 09:00 PHT) on
+GitHub Actions, even when your laptop is off. It emails new leads and commits the
+refreshed `data/leads.csv` back so dedup state persists. Set the three SMTP values
+as repository **Secrets** (Settings → Secrets and variables → Actions).
 
 ## Structure
 

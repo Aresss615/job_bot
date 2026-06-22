@@ -23,8 +23,9 @@ import sys
 from datetime import datetime, timezone
 
 from src.collect import fetch_remoteok, fetch_wwr, collect_leads
-from src.tracker import read_leads, merge_leads, write_leads
+from src.tracker import read_leads, merge_leads, write_leads, select_new
 from src.packet import render_packet
+from src.notify import format_digest, email_config_from_env, send_email
 
 DATA_DIR = "data"
 CSV_PATH = os.path.join(DATA_DIR, "leads.csv")
@@ -37,30 +38,69 @@ def _as_int(value) -> int:
         return 0
 
 
+def _safe_fetch(name, fetch):
+    """Run a feed fetch, returning [] (and a warning) instead of crashing.
+
+    One feed being down or rate-limited shouldn't sink an unattended cron run;
+    the collector proceeds with whatever feeds did respond.
+    """
+    try:
+        return fetch()
+    except Exception as exc:  # noqa: BLE001 — degrade gracefully on any feed error
+        print(f"WARNING: {name} fetch failed ({type(exc).__name__}: {exc}); skipping it.")
+        return []
+
+
 def cmd_collect(_args) -> int:
     os.makedirs(DATA_DIR, exist_ok=True)
     today = datetime.now(timezone.utc).date().isoformat()
 
     print("Fetching Remote OK + We Work Remotely ...")
-    remoteok = fetch_remoteok()
-    wwr = fetch_wwr()
+    remoteok = _safe_fetch("Remote OK", fetch_remoteok)
+    wwr = _safe_fetch("We Work Remotely", fetch_wwr)
+    if not remoteok and not wwr:
+        print("Both feeds failed — nothing collected. Leaving the tracker as-is.")
+        return 1
     fresh = collect_leads(remoteok, wwr, date_found=today)
 
     existing = read_leads(CSV_PATH) if os.path.exists(CSV_PATH) else []
+    added_leads = select_new(existing, fresh)
     merged = merge_leads(existing, fresh)
-    added = len(merged) - len(existing)
     write_leads(merged, CSV_PATH)
 
-    print(f"Collected {len(fresh)} relevant leads; {added} new, "
+    print(f"Collected {len(fresh)} relevant leads; {len(added_leads)} new, "
           f"{len(merged)} total in {CSV_PATH}.")
-    top = sorted(fresh, key=lambda l: _as_int(l.get("fit_score")), reverse=True)[:5]
+    top = sorted(added_leads, key=lambda l: _as_int(l.get("fit_score")),
+                 reverse=True)[:5]
     if top:
-        print("\nTop fresh leads this run:")
+        print("\nTop new leads this run:")
         for lead in top:
             print(f"  [{lead.get('fit_score')}] {lead.get('job_title')} "
                   f"— {lead.get('company') or lead.get('platform')}\n"
                   f"       {lead.get('job_link')}")
+
+    _maybe_email_digest(added_leads, today)
     return 0
+
+
+def _maybe_email_digest(new_leads: list[dict], date: str) -> None:
+    """Email a digest of new leads when SMTP env is set; otherwise note it.
+
+    Only emails when there is something new, so a quiet day is silent rather than
+    a "0 new leads" message every run.
+    """
+    config = email_config_from_env()
+    if config is None:
+        print("(email digest off — set SMTP_USER/SMTP_PASS/DIGEST_TO to enable)")
+        return
+    if not new_leads:
+        return
+    subject, body = format_digest(new_leads, date)
+    try:
+        send_email(subject, body, config)
+        print(f"Emailed {len(new_leads)} new leads to {config['to_addr']}.")
+    except Exception as exc:  # noqa: BLE001 — surface, don't crash the collect run
+        print(f"WARNING: collect succeeded but email failed: {exc}")
 
 
 def cmd_list(_args) -> int:

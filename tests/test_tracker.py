@@ -12,7 +12,9 @@ import os
 import tempfile
 import unittest
 
-from src.tracker import TRACKER_COLUMNS, write_leads, read_leads, merge_leads
+from src.tracker import (
+    TRACKER_COLUMNS, write_leads, read_leads, merge_leads, select_new,
+)
 
 
 class WriteReadTests(unittest.TestCase):
@@ -75,6 +77,30 @@ class MergeTests(unittest.TestCase):
             {"job_link": "b", "job_title": "Second"},
         ])
         self.assertEqual(len(merged), 1)
+
+
+class SelectNewTests(unittest.TestCase):
+    def test_returns_only_leads_not_already_tracked(self):
+        existing = [{"job_link": "a", "job_title": "Old A"}]
+        new = [
+            {"job_link": "a", "job_title": "Dupe A"},   # already tracked -> skip
+            {"job_link": "b", "job_title": "Fresh B"},  # genuinely new -> keep
+        ]
+        fresh = select_new(existing, new)
+        self.assertEqual([l["job_link"] for l in fresh], ["b"])
+        self.assertEqual(fresh[0]["job_title"], "Fresh B")
+
+    def test_collapses_duplicates_within_new_batch(self):
+        fresh = select_new([], [
+            {"job_link": "b", "job_title": "First"},
+            {"job_link": "b", "job_title": "Second"},
+        ])
+        self.assertEqual(len(fresh), 1)
+        self.assertEqual(fresh[0]["job_title"], "First")
+
+    def test_empty_when_nothing_is_new(self):
+        existing = [{"job_link": "a"}]
+        self.assertEqual(select_new(existing, [{"job_link": "a"}]), [])
 
 
 if __name__ == "__main__":

@@ -13,7 +13,10 @@
 *.tar.gz
 
 # --- automation ---
-data/
+# Ignore generated data, EXCEPT the tracker CSV: the scheduled collector commits
+# it back so dedup state survives between runs (it holds only public job leads).
+data/*
+!data/leads.csv
 secrets/
 *.secret
 credentials.json

@@ -1,0 +1,53 @@
+name: collect-leads
+
+# Daily lead pull from the two ToS-permitted feeds (Remote OK API + WWR RSS).
+# Collection only — nothing is ever applied to or submitted. New leads are
+# emailed to Jc and the updated tracker CSV is committed back so dedup state
+# (the "only new leads" guarantee) persists between runs.
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 01:00 UTC ~= 09:00 Philippine time, daily
+  workflow_dispatch: {}    # allow a manual run from the Actions tab
+
+permissions:
+  contents: write          # needed to commit the refreshed data/leads.csv
+
+concurrency:
+  group: collect-leads
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect leads and email new ones
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          # Optional overrides (defaults: smtp.gmail.com:587, from = SMTP_USER):
+          # SMTP_HOST / SMTP_PORT / DIGEST_FROM
+        run: python -m src.run collect
+
+      - name: Commit updated tracker
+        run: |
+          git config user.name  "job-bot"
+          git config user.email "actions@github.com"
+          git add data/leads.csv
+          if git diff --cached --quiet; then
+            echo "No new leads — nothing to commit."
+          else
+            git commit -m "data: refresh leads ($(date -u +%F))"
+            git push
+          fi

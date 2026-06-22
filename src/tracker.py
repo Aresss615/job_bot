@@ -73,3 +73,22 @@ def merge_leads(existing: list[dict], new: list[dict]) -> list[dict]:
             seen.add(link)
         merged.append(lead)
     return merged
+
+
+def select_new(existing: list[dict], new: list[dict]) -> list[dict]:
+    """Return only the leads in ``new`` not already tracked in ``existing``.
+
+    This is ``merge_leads`` seen from the other side: it yields just the genuinely
+    new rows (deduped within the batch too), so the runner can report and email
+    them without re-diffing the whole CSV.
+    """
+    seen = {lead.get("job_link") for lead in existing if lead.get("job_link")}
+    fresh: list[dict] = []
+    for lead in new:
+        link = lead.get("job_link")
+        if link and link in seen:
+            continue
+        if link:
+            seen.add(link)
+        fresh.append(lead)
+    return fresh

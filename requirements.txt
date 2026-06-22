@@ -1,0 +1,4 @@
+# Runtime deps for the live fetch boundary (src/collect.py).
+# The tested core (score/tracker/packet/notify) runs on the stdlib alone.
+requests>=2.31
+feedparser>=6.0
