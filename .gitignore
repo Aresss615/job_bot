@@ -13,6 +13,7 @@
 *.tar.gz
 
 # --- automation ---
+data/
 secrets/
 *.secret
 credentials.json
