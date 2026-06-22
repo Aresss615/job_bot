@@ -130,12 +130,37 @@ def cmd_packet(args) -> int:
     return 0
 
 
+def cmd_test_email(_args) -> int:
+    """Send one confirmation email to prove the SMTP setup works.
+
+    Independent of lead state, so it can verify the Gmail App Password and
+    delivery even when ``collect`` finds nothing new. Sends nowhere but Jc's own
+    inbox; touches no employer.
+    """
+    config = email_config_from_env()
+    if config is None:
+        print("Email not configured — set SMTP_USER / SMTP_PASS / DIGEST_TO.")
+        return 1
+    subject = "[job-bot] test email — setup OK"
+    body = ("If you're reading this, the job-bot email digest is wired up "
+            "correctly.\nThe daily collector will email new leads here. "
+            "Nothing is ever applied to or submitted.\n")
+    try:
+        send_email(subject, body, config)
+        print(f"Sent test email to {config['to_addr']}.")
+        return 0
+    except Exception as exc:  # noqa: BLE001 — report the SMTP failure plainly
+        print(f"Test email FAILED: {type(exc).__name__}: {exc}")
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="job_bot", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("collect", help="fetch feeds, score, merge into the tracker")
     sub.add_parser("list", help="show tracked leads sorted by fit score")
+    sub.add_parser("test-email", help="send one email to verify SMTP setup")
 
     p_packet = sub.add_parser("packet", help="print an approval packet for a lead")
     p_packet.add_argument("job_link", help="the job_link of the lead (see `list`)")
@@ -146,7 +171,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    handlers = {"collect": cmd_collect, "list": cmd_list, "packet": cmd_packet}
+    handlers = {"collect": cmd_collect, "list": cmd_list, "packet": cmd_packet,
+                "test-email": cmd_test_email}
     return handlers[args.command](args)
 
 
